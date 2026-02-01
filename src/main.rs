@@ -47,6 +47,7 @@ fn read_mf_csv(input_file_path: &str, output_dir_path: &str) -> Result<(), Box<d
         exercise_records.push(exercise_record);
     }
 
+    // No Need to Go Further if No Records
     if exercise_records.len() == 0 {
         return Ok(());
     }
@@ -57,10 +58,12 @@ fn read_mf_csv(input_file_path: &str, output_dir_path: &str) -> Result<(), Box<d
     let mut buf = String::new();
 
     for record in exercise_records {
+        // When New Date == New Workout We Write Old Workout to File and Reset
         if record.date != curr_date {
-            // New Date == New Workout
-            // So We Write Old Workout to File and Reset
-            write_to_file(buf.clone(), curr_date.as_str(), output_dir_path)?;
+            // Don't Need to Write on First Pass
+            if curr_date.len() > 0 {
+                write_to_file(buf.clone(), curr_date.as_str(), output_dir_path)?;
+            }
             buf.clear();
 
             buf.push_str("## ");
