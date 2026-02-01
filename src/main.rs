@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer};
-use std::{error::Error, fs, fs::File, process};
+use std::{env, error::Error, fs, fs::File, process};
 
 #[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone)]
 struct ExerciseRecord {
@@ -24,9 +24,22 @@ where
     Ok(opt.unwrap_or_else(T::default))
 }
 
-fn read_mf_csv() -> Result<(), Box<dyn Error>> {
+fn write_to_file(
+    text_buffer: String,
+    curr_date: &str,
+    output_dir_path: &str,
+) -> Result<(), Box<dyn Error>> {
+    let mut title = String::new();
+    title.push_str(output_dir_path);
+    title.push_str(curr_date);
+    title.push_str(" Workout.md");
+    fs::write(title, text_buffer)?;
+    Ok(())
+}
+
+fn read_mf_csv(input_file_path: &str, output_dir_path: &str) -> Result<(), Box<dyn Error>> {
     let mut exercise_records = Vec::new();
-    let file = File::open("resources/sample2.csv")?;
+    let file = File::open(input_file_path)?;
     let mut rdr = csv::Reader::from_reader(file);
 
     for result in rdr.deserialize() {
@@ -47,11 +60,7 @@ fn read_mf_csv() -> Result<(), Box<dyn Error>> {
         if record.date != curr_date {
             // New Date == New Workout
             // So We Write Old Workout to File and Reset
-            let mut title = String::new();
-            title.push_str("output/");
-            title.push_str(curr_date.as_str());
-            title.push_str(" Workout.md");
-            fs::write(title, buf.clone()).unwrap();
+            write_to_file(buf.clone(), curr_date.as_str(), output_dir_path)?;
             buf.clear();
 
             buf.push_str("## ");
@@ -86,17 +95,15 @@ fn read_mf_csv() -> Result<(), Box<dyn Error>> {
     }
 
     // Capture Final Workout
-    let mut title = String::new();
-    title.push_str("output/");
-    title.push_str(curr_date.as_str());
-    title.push_str(" Workout.md");
-    fs::write(title, buf.clone()).unwrap();
+    write_to_file(buf.clone(), curr_date.as_str(), output_dir_path)?;
+    buf.clear();
 
     Ok(())
 }
 
 fn main() {
-    if let Err(err) = read_mf_csv() {
+    let args: Vec<String> = env::args().collect();
+    if let Err(err) = read_mf_csv(args[1].as_str(), args[2].as_str()) {
         println!("Error Running Converter: {}", err);
         process::exit(1);
     }
