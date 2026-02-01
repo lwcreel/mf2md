@@ -1,12 +1,13 @@
+use serde::{Deserialize, Deserializer};
 use std::{error::Error, fs::File, process};
 
 #[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone)]
 struct ExerciseRecord {
-    #[serde(rename = "Weight (lbs)", default = "default_weight")]
+    #[serde(rename = "Weight (lbs)", deserialize_with = "null_to_default")]
     weight: u16,
     #[serde(rename = "Reps")]
     reps: u8,
-    #[serde(rename = "RIR", default = "default_rir")]
+    #[serde(rename = "RIR", deserialize_with = "null_to_default")]
     rir: u8,
     #[serde(rename = "Date")]
     date: String,
@@ -14,17 +15,18 @@ struct ExerciseRecord {
     exercise: String,
 }
 
-fn default_weight() -> u16 {
-    199
-}
-
-fn default_rir() -> u8 {
-    5
+fn null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    let opt = Option::deserialize(deserializer)?;
+    Ok(opt.unwrap_or_else(T::default))
 }
 
 fn read_mf_csv() -> Result<(), Box<dyn Error>> {
     let mut exercise_records = Vec::new();
-    let file = File::open("resources/sample.csv")?;
+    let file = File::open("resources/sample2.csv")?;
     let mut rdr = csv::Reader::from_reader(file);
 
     for result in rdr.deserialize() {
@@ -59,12 +61,19 @@ fn read_mf_csv() -> Result<(), Box<dyn Error>> {
         }
 
         buf.push_str("- ");
-        buf.push_str(record.weight.to_string().as_str());
+
+        // Empty Weight in Export == BW Exercise
+        if record.weight == 0 {
+            buf.push_str("BW");
+        } else {
+            buf.push_str(record.weight.to_string().as_str());
+        }
+
         buf.push_str("x");
         buf.push_str(record.reps.to_string().as_str());
         buf.push_str(" (");
         buf.push_str(record.rir.to_string().as_str());
-        buf.push_str(")\n");
+        buf.push_str(" RIR)\n");
     }
 
     println!("{}", buf);
