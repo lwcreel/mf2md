@@ -1,5 +1,5 @@
 use serde::{Deserialize, Deserializer};
-use std::{error::Error, fs::File, process};
+use std::{error::Error, fs, fs::File, process};
 
 #[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone)]
 struct ExerciseRecord {
@@ -42,9 +42,18 @@ fn read_mf_csv() -> Result<(), Box<dyn Error>> {
     let mut curr_exercise = String::from("");
 
     let mut buf = String::new();
+
     for record in exercise_records {
         if record.date != curr_date {
             // New Date == New Workout
+            // So We Write Old Workout to File and Reset
+            let mut title = String::new();
+            title.push_str("output/");
+            title.push_str(curr_date.as_str());
+            title.push_str(" Workout.md");
+            fs::write(title, buf.clone()).unwrap();
+            buf.clear();
+
             buf.push_str("## ");
             curr_date = record.date.clone();
             buf.push_str(curr_date.as_str());
@@ -76,7 +85,12 @@ fn read_mf_csv() -> Result<(), Box<dyn Error>> {
         buf.push_str(" RIR)\n");
     }
 
-    println!("{}", buf);
+    // Capture Final Workout
+    let mut title = String::new();
+    title.push_str("output/");
+    title.push_str(curr_date.as_str());
+    title.push_str(" Workout.md");
+    fs::write(title, buf.clone()).unwrap();
 
     Ok(())
 }
