@@ -1,8 +1,8 @@
-use std::{collections::HashMap, error::Error, fs::File, process};
+use std::{error::Error, fs::File, process};
 
 #[derive(Debug, serde::Deserialize, PartialEq, Eq, Clone)]
 struct ExerciseRecord {
-    #[serde(rename = "Weight", default = "default_weight")]
+    #[serde(rename = "Weight (lbs)", default = "default_weight")]
     weight: u16,
     #[serde(rename = "Reps")]
     reps: u8,
@@ -23,40 +23,51 @@ fn default_rir() -> u8 {
 }
 
 fn read_mf_csv() -> Result<(), Box<dyn Error>> {
-    let mut res = Vec::new();
+    let mut exercise_records = Vec::new();
     let file = File::open("resources/sample.csv")?;
     let mut rdr = csv::Reader::from_reader(file);
 
     for result in rdr.deserialize() {
         let exercise_record: ExerciseRecord = result?;
-        res.push(exercise_record);
+        exercise_records.push(exercise_record);
     }
 
-    let mut output = HashMap::new();
+    if exercise_records.len() == 0 {
+        return Ok(());
+    }
 
-    for row in res {
-        let exercise_name = row.exercise.to_string();
+    let mut curr_date = String::from("");
+    let mut curr_exercise = String::from("");
 
-        let mut values = String::from("\n");
-        values.push_str(row.weight.to_string().as_str());
-        values.push_str("x");
-        values.push_str(row.reps.to_string().as_str());
-        values.push_str(" (");
-        values.push_str(row.rir.to_string().as_str());
-        values.push_str(" RIR)");
+    let mut buf = String::new();
+    for record in exercise_records {
+        if record.date != curr_date {
+            // New Date == New Workout
+            buf.push_str("## ");
+            curr_date = record.date.clone();
+            buf.push_str(curr_date.as_str());
+            buf.push_str("\n");
 
-        if output.contains_key(exercise_name.as_str()) {
-            let mut t = String::from(output.get(exercise_name.as_str()).unwrap());
-            t.push_str(values.as_str());
-            output.insert(exercise_name, t);
-        } else {
-            output.insert(exercise_name, values);
+            // Reset the exercise in case of duplicate in new date
+            curr_exercise = String::from("");
         }
+        if record.exercise != curr_exercise {
+            buf.push_str("### ");
+            curr_exercise = record.exercise.clone();
+            buf.push_str(curr_exercise.as_str());
+            buf.push_str("\n");
+        }
+
+        buf.push_str("- ");
+        buf.push_str(record.weight.to_string().as_str());
+        buf.push_str("x");
+        buf.push_str(record.reps.to_string().as_str());
+        buf.push_str(" (");
+        buf.push_str(record.rir.to_string().as_str());
+        buf.push_str(")\n");
     }
 
-    for (exercise, values) in output {
-        println!("{exercise}: {values}");
-    }
+    println!("{}", buf);
 
     Ok(())
 }
